@@ -6,7 +6,8 @@ from Domino import *
 pygame.init()
 
 # Set up the window
-window_size = (800, 600)
+pygame.display.set_caption("Dominoes")
+window_size = (1600, 1200)
 window = pygame.display.set_mode(window_size)
 
 # Define a function to draw a tile
@@ -42,18 +43,10 @@ def draw_tile_r(tile, x, y, visited, verticle):
     else:
         draw_tile(tile, x, y)
 
+    # 15 is half the width of a tile
+    # 35 is width of a tile + 5
+    # 65 is height of a tile + 5
     # Recursively draw connected tile
-    if tile.b_edge:
-        if verticle:
-            if tile.b_edge.is_double():
-                draw_tile_r(tile.b_edge, x - 15, y + 35, visited, verticle)
-            else:
-                draw_tile_r(tile.b_edge, x, y + 65, visited, verticle)
-        else:
-            if tile.b_edge.is_double():
-                draw_tile_r(tile.b_edge, x + 35, y - 15, visited, verticle)
-            else:
-                draw_tile_r(tile.b_edge, x + 65, y, visited, verticle)
     if tile.a_edge:
         if verticle:
             if tile.a_edge.is_double():
@@ -65,7 +58,17 @@ def draw_tile_r(tile, x, y, visited, verticle):
                 draw_tile_r(tile.a_edge, x - 35, y - 15, visited, verticle)
             else:
                 draw_tile_r(tile.a_edge, x - 65, y, visited, verticle)
-    # Playing off a double
+    if tile.b_edge:
+        if verticle:
+            if tile.b_edge.is_double():
+                draw_tile_r(tile.b_edge, x - 15, y + 65, visited, verticle)
+            else:
+                draw_tile_r(tile.b_edge, x, y + 65, visited, verticle)
+        else:
+            if tile.b_edge.is_double():
+                draw_tile_r(tile.b_edge, x + 65, y - 15, visited, verticle)
+            else:
+                draw_tile_r(tile.b_edge, x + 65, y, visited, verticle)
     if tile.double_a:
         if not verticle:
             draw_tile_r(tile.double_a, x + 15, y - 65, visited, not verticle)
@@ -73,53 +76,65 @@ def draw_tile_r(tile, x, y, visited, verticle):
             draw_tile_r(tile.double_a, x - 65, y + 15, visited, not verticle)
     if tile.double_b:
         if not verticle:
-            draw_tile_r(tile.double_b, x + 15, y + 65, visited, not verticle)
+            draw_tile_r(tile.double_b, x + 15, y + 35, visited, not verticle)
         else:
-            draw_tile_r(tile.double_b, x + 65, y + 15, visited, not verticle)
+            draw_tile_r(tile.double_b, x + 35, y + 15, visited, not verticle)
 
+def draw_board(board):
+    visited = set()
+    x = window_size[0] // 2
+    y = window_size[1] // 2
+    draw_tile_r(board.first_tile(), x, y, visited, False)
+
+def draw_tiles(players):
+    for i, tile in enumerate(players[0].hand):
+        y = window_size[1] - 100
+        draw_tile(tile, 200 + i * 70, y)
+
+    for i, tile in enumerate(players[1].hand):
+        draw_tile(tile, 200 + i * 70, 100)
 
 # Create some sample tiles
 boneyard = BoneYard()
-# boneyard.shuffle()
+boneyard.shuffle()
 board = Board()
-
 p1 = DominoPlayer(boneyard, board)
-for i in range(28):
-    p1.draw()
-p1.play(4, 0)
-p1.play(3, 0)
-p1.play(1, 1)
-p1.play(1, 1)
-p1.play(3, 1)
-p1.play(2, 2)
-p1.play(5, 1)
-p1.play(6, 3)
-p1.play(3, 3)
-p1.play(9, 3)
-p1.play(14, 3)
-p1.play(16, 5)
-p1.play(2, 3)
-
-print("player hand")
-p1.show()
-print("board edges")
-board.show_edges()
-
-print("board tiles")
-for idx, tile in enumerate(board.tiles):
-    print(tile.show())
-
-first_tile = board.first_tile()
+p2 = DominoPlayer(boneyard, board)
+players = [p1, p2]
+for i in range(5):
+    for player in players:
+        player.draw()
 
 # Main game loop
+p1.play(0, 0)
+turn = 1
 while True:
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
             pygame.quit()
             sys.exit()
 
+    player = players[turn % 2]
+    # print("Player", turn % 2 + 1, "move:")
+    while len(player.get_moves()) == 0:
+        if player.draw() == False:
+            # Can't draw last tile
+            break
+
+    moves = player.get_moves()
+    if len(moves) == 0:
+        # Skip player
+        turn += 1
+        continue 
+    else:
+        player.play(moves[0][0], moves[0][1])
+        turn += 1
+        
     window.fill((255, 255, 255))
-    visited = set()
-    draw_tile_r(first_tile, 400, 300, visited, False)
+    draw_tiles(players)
+    draw_board(board)
+    # for tile in board.tiles:
+    #     tile.show()
 
     pygame.display.flip()
+    pygame.time.wait(300)

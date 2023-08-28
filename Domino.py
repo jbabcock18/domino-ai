@@ -1,5 +1,4 @@
 import random    
-import pygame
 
 class Tile:
     def __init__(self, a, b):
@@ -41,27 +40,39 @@ class Tile:
     
     def is_full(self):
         return self.a_edge is not None and self.b_edge is not None
-
-    def add_edge(self, tile):
+    
+    def can_play(self, tile, verbose=False):
         # If no edges match, raise error
         if self.a != tile.a and self.a != tile.b and self.b != tile.a and self.b != tile.b:
-            print("No matching edges", self, tile)
+            if verbose:
+                print("No matching edges", self, tile)
             return False
         
         if self.is_double():
             if self.a_edge is not None and self.b_edge is not None and self.double_a is not None and self.double_b is not None:
-                print("Double already full")
+                if verbose:
+                    print("Double already full")
                 return False
         else:
             # If matching edge is already full, raise error
             if (tile.a == self.a and self.a_edge is not None) or (tile.a == self.b and self.b_edge is not None):
-                print("A edge already full")
+                if verbose:
+                    print("A edge already full")
                 return False
             
             if tile.b == self.a and self.a_edge is not None or tile.b == self.b and self.b_edge is not None:
-                print("B edge already full")
+                if verbose:
+                    print("B edge already full")
                 return False
-        
+            
+        return True
+
+    def add_edge(self, tile):
+        if self.can_play(tile, verbose=True):
+            pass
+        else:
+            return False
+
         # Adding to double as first tile
         if self.is_double() and self.double_a is None:
             # Always start with b
@@ -77,6 +88,29 @@ class Tile:
                 tile.flip()
             tile.a_edge = self
             self.double_b = tile
+
+        # Adding to first tile
+        elif self.a_edge is None and self.b_edge is None:
+            if tile.is_double() and self.a == tile.a:
+                self.a_edge = tile
+                tile.double_b = self
+            elif tile.is_double() and self.b == tile.a:
+                self.b_edge = tile
+                tile.double_a = self
+            elif self.a == tile.a:
+                tile.flip()
+                tile.b_edge = self
+                self.a_edge = tile
+            elif self.a == tile.b:
+                self.a_edge = tile
+                tile.b_edge = self
+            elif self.b == tile.a:
+                self.b_edge = tile
+                tile.a_edge = self
+            elif self.b == tile.b:
+                tile.flip()
+                tile.a_edge = self
+                self.b_edge = tile
 
         # Adding to an a_edge 
         elif self.a_edge is None:
@@ -167,6 +201,8 @@ class BoneYard:
         random.shuffle(self.tiles)
 
     def draw(self):
+        if len(self.tiles) == 1:
+            return None
         return self.tiles.pop()
 
 class DominoPlayer:
@@ -176,7 +212,11 @@ class DominoPlayer:
         self.board = board
 
     def draw(self):
-        self.hand.append(self.bone_yard.draw())
+        tile = self.bone_yard.draw()
+        if tile is None:
+            return False
+        self.hand.append(tile)
+        return True
 
     def show(self):
         for idx, tile in enumerate(self.hand):
@@ -187,6 +227,17 @@ class DominoPlayer:
         valid = self.board.add_edge(edge_idx, tile)
         if valid:
             self.hand.pop(tile_idx)
+        return valid
+    
+    def get_moves(self):
+        moves = []
+        for idx, tile in enumerate(self.hand):
+            for edge_idx, edge in enumerate(self.board.edge_tiles):
+                if tile is None or edge is None:
+                    return []
+                elif edge.can_play(tile):
+                    moves.append((idx, edge_idx))
+        return moves
         
 
     def get_remaining_tiles(self):
