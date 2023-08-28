@@ -11,7 +11,7 @@ p1 = DominoPlayer(boneyard, board)
 p2 = DominoPlayer(boneyard, board)
 p3 = DominoPlayer(boneyard, board)
 p4 = DominoPlayer(boneyard, board)
-players = [p1, p2]
+players = [p1, p2, p3, p4]
 for i in range(5):
     for player in players:
         player.draw()
@@ -27,7 +27,7 @@ while True:
             pygame.quit()
             sys.exit()
     
-    display.window.fill((255, 255, 255))
+    display.window.fill((220, 220, 220))
     display.draw_tiles(players)
     display.draw_board(board)
     pygame.display.flip()
