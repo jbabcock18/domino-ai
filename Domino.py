@@ -175,10 +175,10 @@ class Board:
         points = 0
         for tile in self.edge_tiles:
             # Uncapped double
-            if tile.is_double() and tile.double_cap is None:
+            if tile.is_double() and tile.double_b is None:
                 points += tile.a * 2
             # Capped double
-            elif tile.is_double() and tile.double_cap is not None:
+            elif tile.is_double() and tile.double_b is not None:
                 continue
             # First tile
             elif tile.a_edge is None and tile.b_edge is None:
