@@ -102,7 +102,11 @@ class GameDisplay:
             pygame.draw.circle(self.window, (255, 255, 255), (x + pos_x, y + pos_y), pip_radius)
 
     def draw_tile(self, tile, x, y):
-        color = (0, 128, 0) if tile.selected else (0, 0, 0)
+        color = (0, 0, 0)
+        if tile.selected:
+            color = (0, 128, 0)
+        elif tile.chosen:
+            color = (128, 0, 0)
         # Draw rounded rectangle
         tile.rect = (pygame.Rect(x, y, self.tile_length, self.tile_width))
         pygame.draw.rect(self.window, color, (x, y + 5, self.tile_length, self.tile_width - 10))
@@ -121,7 +125,11 @@ class GameDisplay:
         self.draw_pips(x + self.tile_width, y, tile.b, pip_radius)
 
     def draw_vertical_tile(self, tile, x, y):
-        color = (0, 128, 0) if tile.selected else (0, 0, 0)
+        color = (0, 0, 0)
+        if tile.selected:
+            color = (0, 128, 0)
+        elif tile.chosen:
+            color = (128, 0, 0)
         # Draw rounded rectangle
         tile.rect = (pygame.Rect(x, y, self.tile_width, self.tile_length))
         pygame.draw.rect(self.window, color, (x + 5, y, self.tile_width - 10, self.tile_length))
@@ -216,6 +224,19 @@ class GameDisplay:
             for tile in player.hand:
                 if tile.selected:
                     return tile
+                
+    def handle_edge_click(self, board, x, y):
+        for  tile in board.edge_tiles:
+            if tile.rect.collidepoint(x, y):
+                tile.chosen = not tile.chosen
+                # all other tiles are unselected
+                for other_tile in board.edge_tiles:
+                    if other_tile != tile:
+                        other_tile.chosen = False
+        # return the selected tile
+        for tile in board.edge_tiles:
+            if tile.chosen:
+                return tile
 
     def draw_tiles(self, players):
         x_gap = self.tile_length + 10
@@ -265,3 +286,11 @@ class GameDisplay:
         text = font.render("Play", True, (255, 255, 255))
         self.window.blit(text, (x + 20, y + 10))
         return pygame.Rect(x, y, width, height)
+
+    def draw_scores(self, scores, players):
+        font = pygame.font.SysFont(None, 32)
+        # Top of screen, each player left to right
+        for i, score in enumerate(scores):
+            text = font.render("{}: {}".format(players[i].name, int(score)), True, (0, 0, 0))
+            text_rect = text.get_rect(center=(200 + i * 200, 20))
+            self.window.blit(text, text_rect)
