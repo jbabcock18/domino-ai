@@ -102,13 +102,15 @@ class GameDisplay:
             pygame.draw.circle(self.window, (255, 255, 255), (x + pos_x, y + pos_y), pip_radius)
 
     def draw_tile(self, tile, x, y):
+        color = (0, 128, 0) if tile.selected else (0, 0, 0)
         # Draw rounded rectangle
-        pygame.draw.rect(self.window, (0, 0, 0), (x, y + 5, self.tile_length, self.tile_width - 10))
-        pygame.draw.rect(self.window, (0, 0, 0), (x + 5, y, self.tile_length - 10, self.tile_width))
-        pygame.draw.circle(self.window, (0, 0, 0), (x + 5, y + 5), 5)
-        pygame.draw.circle(self.window, (0, 0, 0), (x + self.tile_length - 5, y + 5), 5)
-        pygame.draw.circle(self.window, (0, 0, 0), (x + 5, y + self.tile_width - 5), 5)
-        pygame.draw.circle(self.window, (0, 0, 0), (x + self.tile_length - 5, y + self.tile_width - 5), 5)
+        tile.rect = (pygame.Rect(x, y, self.tile_length, self.tile_width))
+        pygame.draw.rect(self.window, color, (x, y + 5, self.tile_length, self.tile_width - 10))
+        pygame.draw.rect(self.window, color, (x + 5, y, self.tile_length - 10, self.tile_width))
+        pygame.draw.circle(self.window, color, (x + 5, y + 5), 5)
+        pygame.draw.circle(self.window, color, (x + self.tile_length - 5, y + 5), 5)
+        pygame.draw.circle(self.window, color, (x + 5, y + self.tile_width - 5), 5)
+        pygame.draw.circle(self.window, color, (x + self.tile_length - 5, y + self.tile_width - 5), 5)
         
         # Draw line in the middle
         pygame.draw.line(self.window, (255, 255, 255), (x + self.tile_width, y), (x + self.tile_width, y + self.tile_width), 1)
@@ -119,13 +121,15 @@ class GameDisplay:
         self.draw_pips(x + self.tile_width, y, tile.b, pip_radius)
 
     def draw_vertical_tile(self, tile, x, y):
+        color = (0, 128, 0) if tile.selected else (0, 0, 0)
         # Draw rounded rectangle
-        pygame.draw.rect(self.window, (0, 0, 0), (x + 5, y, self.tile_width - 10, self.tile_length))
-        pygame.draw.rect(self.window, (0, 0, 0), (x, y + 5, self.tile_width, self.tile_length - 10))
-        pygame.draw.circle(self.window, (0, 0, 0), (x + 5, y + 5), 5)
-        pygame.draw.circle(self.window, (0, 0, 0), (x + self.tile_width - 5, y + 5), 5)
-        pygame.draw.circle(self.window, (0, 0, 0), (x + 5, y + self.tile_length - 5), 5)
-        pygame.draw.circle(self.window, (0, 0, 0), (x + self.tile_width - 5, y + self.tile_length - 5), 5)
+        tile.rect = (pygame.Rect(x, y, self.tile_width, self.tile_length))
+        pygame.draw.rect(self.window, color, (x + 5, y, self.tile_width - 10, self.tile_length))
+        pygame.draw.rect(self.window, color, (x, y + 5, self.tile_width, self.tile_length - 10))
+        pygame.draw.circle(self.window, color, (x + 5, y + 5), 5)
+        pygame.draw.circle(self.window, color, (x + self.tile_width - 5, y + 5), 5)
+        pygame.draw.circle(self.window, color, (x + 5, y + self.tile_length - 5), 5)
+        pygame.draw.circle(self.window, color, (x + self.tile_width - 5, y + self.tile_length - 5), 5)
 
         # Draw line in the middle
         pygame.draw.line(self.window, (255, 255, 255), (x, y + self.tile_width), (x + self.tile_width, y + self.tile_width), 1)
@@ -197,23 +201,53 @@ class GameDisplay:
         self.draw_tile_r(board.first_tile(), x, y, visited, False)
         self.draw_points(board)
 
+    def handle_click(self, players, x, y):
+        for player in players:
+            if player.turn == False:
+                continue
+            for tile in player.hand:
+                if tile.rect.collidepoint(x, y):
+                    tile.selected = not tile.selected
+                    # all other tiles are unselected
+                    for other_tile in player.hand:
+                        if other_tile != tile:
+                            other_tile.selected = False
+            # return the selected tile
+            for tile in player.hand:
+                if tile.selected:
+                    return tile
+
     def draw_tiles(self, players):
         x_gap = self.tile_length + 10
         y_gap = self.tile_width + 10
         for i, tile in enumerate(players[0].hand):
-            self.draw_tile(tile, 200 + i * x_gap, self.window_size[1] - 100)
+            x_pos = 200 + i * x_gap
+            y_pos = self.window_size[1] - 100
+            self.draw_tile(tile, x_pos, y_pos)
+            tile.rect = (pygame.Rect(x_pos, y_pos, self.tile_length, self.tile_width))
         if len(players) >= 3:
             for i, tile in enumerate(players[1].hand):
-                self.draw_tile(tile, 40, 200 + i * y_gap)
+                x_pos = 40
+                y_pos = 200 + i * y_gap
+                self.draw_tile(tile, x_pos, y_pos)
+                tile.rect = (pygame.Rect(x_pos, y_pos, self.tile_length, self.tile_width))
             for i, tile in enumerate(players[2].hand):
-                self.draw_tile(tile, 200 + i * x_gap, 100)
+                x_pos = 200 + i * x_gap
+                y_pos = 100
+                self.draw_tile(tile, x_pos, y_pos)
+                tile.rect = (pygame.Rect(x_pos, y_pos, self.tile_length, self.tile_width))
         else:
             for i, tile in enumerate(players[1].hand):
-                self.draw_tile(tile, 200 + i * x_gap, 100)
-            
+                x_pos = 200 + i * x_gap
+                y_pos = 100
+                self.draw_tile(tile, x_pos, y_pos)
+                tile.rect = (pygame.Rect(x_pos, y_pos, self.tile_length, self.tile_width))
         if len(players) >= 4:
             for i, tile in enumerate(players[3].hand):
-                self.draw_tile(tile, self.window_size[0] - 100, 200 + i * y_gap)
+                x_pos = self.window_size[0] - 100
+                y_pos = 200 + i * y_gap
+                self.draw_tile(tile, x_pos, y_pos)
+                tile.rect = (pygame.Rect(x_pos, y_pos, self.tile_length, self.tile_width))
 
     def draw_points(self, board):
         points = board.get_points()
@@ -222,3 +256,12 @@ class GameDisplay:
         # Top middle of screen
         text_rect = text.get_rect(center=(self.window_size[0] // 2, 20))
         self.window.blit(text, text_rect)
+
+    def draw_play_button(self):
+        button_color = (0, 128, 0)
+        x, y, width, height = self.window_size[0] - 100, self.window_size[1] - 50, 80, 40
+        pygame.draw.rect(self.window, button_color, (x, y, width, height))
+        font = pygame.font.SysFont(None, 24)
+        text = font.render("Play", True, (255, 255, 255))
+        self.window.blit(text, (x + 20, y + 10))
+        return pygame.Rect(x, y, width, height)

@@ -3,58 +3,55 @@ import sys
 from Domino import *
 from GameDisplay import *
 
-# Create some sample tiles
-boneyard = BoneYard()
-boneyard.shuffle()
-board = Board()
-p1 = DominoPlayer(boneyard, board)
-p2 = DominoPlayer(boneyard, board)
-p3 = DominoPlayer(boneyard, board)
-p4 = DominoPlayer(boneyard, board)
-players = [p1, p2, p3, p4]
-for i in range(5):
-    for player in players:
-        player.draw()
+class Game:
+    def __init__(self, num_players=2):
+        self.boneyard = BoneYard()
+        self.boneyard.shuffle()
+        self.board = Board()
+        self.display = GameDisplay()
+        self.players = []
+        for i in range(num_players):
+            self.players.append(DominoPlayer(self.boneyard, self.board))
 
-# Main game loop
-p1.play(0, 0)
-turn = 1
-game_over = False
-display = GameDisplay()
-while True:
-    for event in pygame.event.get():
-        if event.type == pygame.QUIT:
-            pygame.quit()
-            sys.exit()
-    
-    display.window.fill((220, 220, 220))
-    display.draw_tiles(players)
-    display.draw_board(board)
-    pygame.display.flip()
+    def deal(self):
+        for player in self.players:
+            for i in range(5):
+                player.hand.append(self.boneyard.draw())
 
-    if game_over:
-        continue
-    player = players[turn % len(players)]
-    while len(player.get_moves()) == 0:
-        print("Player", turn % len(players) + 1, "has to draw")
-        if player.draw() == False:
-            # Can't draw last tile
-            break
-        display.draw_tiles(players)
-        pygame.display.flip()
+    def play(self):
+        self.deal()
+        tile_selected = None
+        turn = 0
+        while True:
+            # Update turn
+            player = self.players[turn % len(self.players)]
+            player.turn = True
+            for p in self.players:
+                if p != player:
+                    p.turn = False
+            # Handle events
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT:
+                    pygame.quit()
+                    sys.exit()
+                elif event.type == pygame.MOUSEBUTTONDOWN:
+                    x, y = event.pos
+                    tile_selected = self.display.handle_click(self.players, x, y)
+                    if play_button_rect.collidepoint(x, y) and tile_selected:
+                        # Handle the logic for playing the selected tile here
+                        idx = player.get_index(tile_selected)
+                        if player.play(idx, 0):
+                            turn += 1
+                            tile_selected.selected = False
+                            tile_selected = None
 
-        pygame.time.wait(1000)
+            self.display.window.fill((220, 220, 220))
 
-    moves = player.get_moves()
-    if len(moves) == 0:
-        # Skip turn (can't play or draw)
-        turn += 1
-        continue 
-    else:
-        player.play(moves[0][0], moves[0][1])
-        turn += 1
-        
-    if len(player.hand) == 0:
-        print("Player", turn % len(players) + 1, "is out!")
-        game_over = True
-    pygame.time.wait(1000)
+            self.display.draw_tiles(self.players)
+            self.display.draw_board(self.board)
+            play_button_rect = self.display.draw_play_button()
+
+            pygame.display.flip()
+
+game = Game()
+game.play()

@@ -1,4 +1,5 @@
-import random    
+import random
+import pygame
 
 class Tile:
     def __init__(self, a, b):
@@ -8,6 +9,8 @@ class Tile:
         self.b_edge = None
         self.double_a = None
         self.double_b = None
+        self.selected = False
+        self.rect = pygame.Rect(0, 0, 0, 0)
 
     def __str__(self):
             return f"[{self.a}|{self.b}]"
@@ -210,6 +213,7 @@ class DominoPlayer:
         self.hand = []
         self.bone_yard = bone_yard
         self.board = board
+        self.turn = False
 
     def draw(self):
         tile = self.bone_yard.draw()
@@ -221,6 +225,13 @@ class DominoPlayer:
     def show(self):
         for idx, tile in enumerate(self.hand):
             print(idx, tile)
+
+    def get_index(self, tile):
+        for idx, t in enumerate(self.hand):
+            if t == tile:
+                return idx
+        return None
+    
 
     def play(self, tile_idx, edge_idx):
         tile = self.hand[tile_idx]
