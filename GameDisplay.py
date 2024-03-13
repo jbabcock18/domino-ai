@@ -1,16 +1,20 @@
 import pygame
 import sys
-from Domino import *
+from Dominos import *
 
 class GameDisplay:
     def __init__(self, window_size=(1600, 1000), tile_length=70):
+        pygame.init()
         self.window_size = window_size
-        self.window = pygame.display.set_mode(self.window_size)
-        self.window.fill((220, 220, 220))
         self.tile_length = tile_length
         self.tile_width = self.tile_length // 2
+        self.play_button_rect = None
+        self.draw_button_rect = None
+
+    def setup(self):
+        self.window = pygame.display.set_mode(self.window_size)
         pygame.display.set_caption("Dominoes")
-        pygame.init()
+        pygame.display.update()
 
     def draw_pips(self, x, y, num_pips, pip_radius):
         if num_pips == 0:
@@ -209,24 +213,21 @@ class GameDisplay:
         self.draw_tile_r(board.first_tile(), x, y, visited, False)
         self.draw_points(board)
 
-    def handle_click(self, players, x, y):
-        for player in players:
-            if player.turn == False:
-                continue
-            for tile in player.hand:
-                if tile.rect.collidepoint(x, y):
-                    tile.selected = not tile.selected
-                    # all other tiles are unselected
-                    for other_tile in player.hand:
-                        if other_tile != tile:
-                            other_tile.selected = False
-            # return the selected tile
-            for tile in player.hand:
-                if tile.selected:
-                    return tile
+    def handle_tile_click(self, player, x, y):
+        for tile in player.hand:
+            if tile.rect.collidepoint(x, y):
+                tile.selected = not tile.selected
+                # all other tiles are unselected
+                for other_tile in player.hand:
+                    if other_tile != tile:
+                        other_tile.selected = False
+        # return the selected tile
+        for tile in player.hand:
+            if tile.selected:
+                return tile
                 
     def handle_edge_click(self, board, x, y):
-        for  tile in board.edge_tiles:
+        for tile in board.edge_tiles:
             if tile.rect.collidepoint(x, y):
                 tile.chosen = not tile.chosen
                 # all other tiles are unselected
@@ -278,19 +279,30 @@ class GameDisplay:
         text_rect = text.get_rect(center=(self.window_size[0] // 2, 20))
         self.window.blit(text, text_rect)
 
-    def draw_play_button(self):
+    def create_play_button(self):
         button_color = (0, 128, 0)
         x, y, width, height = self.window_size[0] - 100, self.window_size[1] - 50, 80, 40
         pygame.draw.rect(self.window, button_color, (x, y, width, height))
         font = pygame.font.SysFont(None, 24)
         text = font.render("Play", True, (255, 255, 255))
         self.window.blit(text, (x + 20, y + 10))
-        return pygame.Rect(x, y, width, height)
+        self.play_button_rect = pygame.Rect(x, y, width, height)
+
+    def create_draw_button(self):
+        button_color = (0, 128, 128)
+        x, y, width, height = self.window_size[0] - 200, self.window_size[1] - 50, 80, 40
+        pygame.draw.rect(self.window, button_color, (x, y, width, height))
+        font = pygame.font.SysFont(None, 24)
+        text = font.render("Draw", True, (255, 255, 255))
+        self.window.blit(text, (x + 20, y + 10))
+        self.draw_button_rect = pygame.Rect(x, y, width, height)
 
     def draw_scores(self, scores, players):
         font = pygame.font.SysFont(None, 32)
         # Top of screen, each player left to right
-        for i, score in enumerate(scores):
-            text = font.render("{}: {}".format(players[i].name, int(score)), True, (0, 0, 0))
-            text_rect = text.get_rect(center=(200 + i * 200, 20))
+        i = 0
+        for k, v in scores.items():
+            text = font.render("{}: {}".format(k, int(v)), True, (0, 0, 0))
+            text_rect = text.get_rect(center=(200 + (i*200), 20))
             self.window.blit(text, text_rect)
+            i += 1

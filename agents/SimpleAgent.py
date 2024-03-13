@@ -1,36 +1,21 @@
 from Player import DominoPlayer
-import random
 import copy
 
-class DumbAgent(DominoPlayer):
-    def __init__(self, bone_yard, board):
-        super().__init__(bone_yard, board)
-        self.name = "Dumb Agent"
-        self.is_agent = True
-
-    def get_action(self):
-        if self.board.is_empty():
-            return (0, 0)
-        moves = self.get_moves()
-        # pick a random move
-        if len(moves) > 0:
-            return random.choice(moves)
-
-
 class SimpleAgent(DominoPlayer):
-    def __init__(self, bone_yard, board):
-        super().__init__(bone_yard, board)
-        self.name = "Simple Agent"
+    def __init__(self, name="Simple Agent"):
+        super().__init__()
+        self.name = name
         self.is_agent = True
+        
 
-    def get_action(self):
+    def get_action(self, board):
         max_value = 0
         max_idx = None
         # First tile
-        if self.board.is_empty():
+        if board.is_empty():
             for i in range(len(self.hand)):
                 tile = self.hand[i]
-                score = self.get_score((i, 0))
+                score = self.get_score(board, (i, 0))
                 if score > max_value:
                     max_value = score
                     max_idx = i
@@ -39,18 +24,18 @@ class SimpleAgent(DominoPlayer):
             return (0, 0)
         
         # Can score?
-        moves = self.get_moves()
+        moves = self.get_moves(board)
         if len(moves) == 0:
-            print("edge tiles:", self.board.edge_tiles)
-            print("hand:", self.hand)
+            return None
         max_score = 0
         best_move = None
         for move in moves:
-            score = self.get_score(move)
+            score = self.get_score(board, move)
             if score > max_score:
                 max_score = score
                 best_move = move
-
+                
+        # Can't score
         if best_move is None:
             # Choose highest tile in valid moves
             max_value = 0
@@ -65,10 +50,18 @@ class SimpleAgent(DominoPlayer):
 
         return best_move
     
-    def get_score(self, move):
+    def play(self, board, move):
         tile_idx, edge_idx = move
         tile = self.hand[tile_idx]
-        board_copy = copy.deepcopy(self.board)
+        valid = board.add_edge(edge_idx, tile)
+        if valid:
+            self.hand.pop(tile_idx)
+        return valid
+    
+    def get_score(self, board, move):
+        tile_idx, edge_idx = move
+        tile = self.hand[tile_idx]
+        board_copy = copy.deepcopy(board)
         tile_copy = copy.deepcopy(tile)
         board_copy.add_edge(edge_idx, tile_copy)
         points = board_copy.get_points()

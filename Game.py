@@ -1,179 +1,161 @@
 import pygame
 import sys
-from Domino import *
-from GameDisplay import *
-from Agent import *
-from Board import *
-from Player import *
+from Dominos import Board, BoneYard
+from GameDisplay import GameDisplay
+from agents.DumbAgent import DumbAgent
+from agents.SimpleAgent import SimpleAgent
 
 class Game:
-    def __init__(self, num_players=2, verbose=False, wait=0):
-        self.boneyard = BoneYard()
-        self.boneyard.shuffle()
-        self.board = Board()
-        self.display = GameDisplay()
-        self.players = []
-        self.scores = [0] * num_players
-        self.wait = wait
-        self.verbose = verbose
-        # self.players.append(DominoPlayer(self.boneyard, self.board))
-        rando = DumbAgent(self.boneyard, self.board)
-        simp = SimpleAgent(self.boneyard, self.board)
-        self.players.append(rando)
-        self.players.append(simp)
+    def __init__(self, players, board, boneyard, display_on=False):
+        self.boneyard = boneyard
+        self.board = board
+        self.display_on = display_on
+        if display_on:
+            self.display = GameDisplay()
+            self.display.setup()
+        self.players = players
+        self.starting_turn = 0
+        self.current_player = players[self.starting_turn]
+        self.scores = {player.name: 0 for player in players}
 
     def reset(self):
-        self.boneyard = BoneYard()
-        self.boneyard.shuffle()
+        self.boneyard.reset()
         self.board.reset()
+        self.starting_turn += 1
+        self.current_player = self.players[self.starting_turn % len(self.players)]
         for player in self.players:
-            player.hand = []
-            player.board = self.board
-            player.bone_yard = self.boneyard
+            player.reset()
         self.deal()
 
-    def deal(self):
+    def deal(self, num_tiles=5):
         for player in self.players:
-            for i in range(5):
-                player.draw()
-
-    def score(self, idx):
+            player.draw_n(self.boneyard, num_tiles)
+    
+    def calculate_board_points(self):
         points = self.board.get_points()
         if points % 5 == 0:
-            score = points / 5
-            self.scores[idx] += score
-            player = self.players[idx]
-            if self.verbose:
-                print("{} scored {} points".format(player.name, int(score)))
-            return score
+            return points // 5
         return 0
+    
+    def score(self, player, points):
+        self.scores[player.name] += points
+        return
 
-    def play(self):
-        self.deal()
-        tile_selected, edge_selected = None, None
-        round_over = False
-        turn = 0
-        starting_turn = 0
-        skipped = False
-        round_num = 0
-        while True:
-            # Check for round over
-            if round_over:
-                round_num += 1
-                print("Round", round_num, "scores:", self.scores)
-                pygame.time.wait(self.wait * 1000)
-                self.reset()
-                tile_selected, edge_selected = None, None
-                round_over = False
-                skipped = False
-                starting_turn += 1
-                turn = starting_turn
-            
-                # Check for game over
-                for idx, score in enumerate(self.scores):
-                    if score > 61:
-                        print("Game over!")
-                        print("{} won".format(self.players[idx].name))
-                        return idx
+    def draw_board(self):
+        if self.display_on:
+            self.display.window.fill((120, 120, 120))
+            self.display.draw_tiles(self.players)
+            self.display.draw_board(self.board)
+            self.display.draw_scores(self.scores, self.players)
+            self.display.create_play_button()
+            self.display.create_draw_button()
+            pygame.display.flip()
 
-            # Update turn
-            player_index = turn % len(self.players)
-            player = self.players[player_index]
-            player.turn = True
-            for p in self.players:
-                if p != player:
-                    p.turn = False
-
-            # Draw if no moves
-            skip = False
-            while len(player.get_moves()) == 0 and len(self.board.edge_tiles) > 0:
-                pygame.time.wait(self.wait * 1000)
-                can_draw = player.draw()
-                if can_draw:
-                    if self.verbose:
-                        print("{} drew a tile".format(player.name))
-                    self.display.draw_tiles(self.players)
-                    pygame.display.flip()
-
-                else:
-                    if self.verbose:
-                        print("{} cannot draw".format(player.name))
-                    turn += 1
-                    skip = True
-                    break
-
-            if skip and skipped:
-                if self.verbose:
-                    print("No moves for anyone")
-                round_over = True
-                continue
-
-            if skip:
-                skipped = True
-                continue
-            else:
-                skipped = False
-
-            # Agent move
-            if player.is_agent:
-                pygame.time.wait(self.wait * 1000)
-                tile, edge = player.get_action()
-                if tile is None or edge is None:
-                    print("player: {}".format(player.name))
-                    print("tile: {}, edge: {}".format(tile, edge))
-                player.play(tile, edge)
-                self.score(player_index)
-                turn += 1
-
-            # Handle events
+    def handle_events(self):
+        if self.display_on:
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
                     pygame.quit()
                     sys.exit()
-                elif event.type == pygame.MOUSEBUTTONDOWN:
-                    x, y = event.pos
-                    tile_selected = self.display.handle_click(self.players, x, y)
-                    edge_selected = self.display.handle_edge_click(self.board, x, y)
-                    if play_button_rect.collidepoint(x, y) and tile_selected:
-                        # Handle the logic for playing the selected tile here
-                        idx = player.get_index(tile_selected)
-                        if edge_selected:
-                            edge_idx = self.board.get_index(edge_selected)
-                        else:
-                            edge_idx = 0
-                        if player.play(idx, edge_idx):
-                            self.score(player_index)
-                            turn += 1
-                            tile_selected.selected = False
-                            if edge_selected:
-                                edge_selected.chosen = False
-                            tile_selected = None
-                            edge_selected = None
+                if event.type == pygame.MOUSEBUTTONDOWN:
+                    self.handle_mouse_click(event.pos)
 
-            # Check for game over
+    def handle_mouse_click(self, pos):
+        x, y = pos
+        tile_selected = self.display.handle_tile_click(self.current_player, x, y)
+        edge_selected = self.display.handle_edge_click(self.board, x, y)
+        play_button = self.display.play_button_rect
+        if play_button.collidepoint(x, y) and tile_selected:
+            self.handle_play(tile_selected, edge_selected)
+        draw_button = self.display.draw_button_rect
+        if draw_button.collidepoint(x, y):
+            self.handle_draw()
+
+            
+    def handle_draw(self):
+        if len(self.boneyard.tiles) == 1:
+            # Cant draw last tile in bone yard
+            self.next_turn()
+            return
+        if self.current_player.get_moves(self.board) == []:
+            self.current_player.draw(self.boneyard)
+        else:
+            print("You have a valid move, you can't draw")
+
+
+    def handle_play(self, tile_selected, edge_selected):
+        player = self.current_player
+        if player.play(self.board, tile_selected, edge_selected):
+            board_points = self.calculate_board_points()
+            self.score(self.current_player, board_points)
+            self.next_turn()
+            tile_selected.selected = False
+            if edge_selected:
+                edge_selected.chosen = False
+
+    def handle_agent_play(self):
+        move = self.current_player.get_action(self.board)
+        if move is not None:
+            self.current_player.play(self.board, move)
+            board_points = self.calculate_board_points()
+            self.score(self.current_player, board_points)
+            self.next_turn()
+        else:
+            self.handle_draw()
+
+    def next_turn(self):
+        if self.round_over():
+            deadwood_points = self.calculate_deadwood_points()
+            self.score(self.current_player, deadwood_points)
+            return
+        idx = self.players.index(self.current_player)
+        if idx == len(self.players) - 1:
+            self.current_player = self.players[0]
+        else:
+            self.current_player = self.players[idx + 1]
+
+    def is_stalemate(self):
+        if len(self.boneyard.tiles) == 1:
+            for player in self.players:
+                if player.get_moves(self.board) != []:
+                    return False
+            return True
+        
+    def calculate_deadwood_points(self):
+        deadwood_points = 0
+        for player in self.players:
+            deadwood_points += player.deadwood()
+        return round(deadwood_points / 5)
+
+    def round_over(self):
+        for player in self.players:
             if len(player.hand) == 0:
-                if self.verbose:
-                    print("{} is out".format(player.name))
-                deadwood_points = 0
-                for p in self.players:
-                    if p != player:
-                        deadwood_points += p.deadwood()
-                self.scores[player_index] += round(deadwood_points / 5)
-                if self.verbose:
-                    print("{} scored {} points from deadwood".format(player.name, round(deadwood_points / 5)))
-                round_over = True
+                return True
+        
+    def game_over(self):
+        scores = [self.scores[player.name] for player in self.players]
+        # if the scores are not the same and one player has more than 61 points and the round is over
+        if len(set(scores)) != 1 and max(scores) > 60 and self.round_over():
+            return True
+        return False
+    
+    def announce_winner(self):
+        scores = [self.scores[player.name] for player in self.players]
+        winner = self.players[scores.index(max(scores))]
+        print("The winner is:", winner.name)
+        print("Scores:", self.scores)
+        self.draw_board()
 
-
-            self.display.window.fill((100, 100, 100))
-
-            self.display.draw_tiles(self.players)
-            self.display.draw_board(self.board)
-            self.display.draw_scores(self.scores, self.players)
-            play_button_rect = self.display.draw_play_button()
-
-            pygame.display.flip()
-
-
-game = Game(2)
-winner = game.play()
-print("Winner:", winner)
+    def play(self):
+        self.deal()
+        rounds = 0
+        while not self.game_over():
+            self.draw_board()
+            if (self.round_over() or self.is_stalemate()) and not self.game_over():
+                self.reset()
+                rounds += 1
+            if self.current_player.is_agent:
+                self.handle_agent_play()
+            self.handle_events()
+        print("Rounds:", rounds)
+        self.announce_winner()
